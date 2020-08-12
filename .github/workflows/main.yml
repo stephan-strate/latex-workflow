@@ -1,0 +1,104 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**.tex'
+      - 'images/**'
+      - '**.bib'
+
+jobs:
+  version:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repository
+      - name: Checkout
+        uses: actions/checkout@v1
+      # Read current version
+      - name: Current version
+        id: version_current
+        uses: christian-draeger/read-properties@1.0.0
+        with:
+          path: config.properties
+          property: version
+      # Generate semvers from current version
+      - name: Next versions
+        id: version_next
+        uses: WyriHaximus/github-action-next-semvers@master
+        with:
+          version: ${{ steps.version_current.outputs.value }}
+      # Write major version back to config file
+      - name: Write major version
+        uses: christian-draeger/write-properties@master
+        if: contains(github.event.head_commit.message, '[major]')
+        with:
+          path: config.properties
+          property: version
+          value: ${{ steps.version_next.outputs.major }}
+      # Write minor version back to config file
+      - name: Write minor version
+        uses: christian-draeger/write-properties@master
+        if: contains(github.event.head_commit.message, '[minor]')
+        with:
+          path: config.properties
+          property: version
+          value: ${{ steps.version_next.outputs.minor }}
+      # Write patch version back to config file
+      - name: Write patch version
+        uses: christian-draeger/write-properties@master
+        if: "!contains(github.event.head_commit.message, '[major]') && !contains(github.event.head_commit.message, '[minor]')"
+        with:
+          path: config.properties
+          property: version
+          value: ${{ steps.version_next.outputs.patch }}
+      # Read updated version
+      - name: Updated version
+        id: version_updated
+        uses: christian-draeger/read-properties@1.0.0
+        with:
+          path: config.properties
+          property: version
+      # Commit config file
+      - name: Commit
+        uses: github-actions-x/commit@v2.3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          push-branch: master
+          commit-message: Bump version to ${{ steps.version_updated.outputs.value }}
+          force-add: true
+          files: config.properties
+          name: GitHub
+          email: support@github.com
+
+  compile:
+  
+    runs-on: ubuntu-latest
+    needs: version
+    
+    steps:
+      # Checkout repository
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: master # needed to checkout version updated master
+      # Creating .pdf from main.tex
+      - name: Compile
+        uses: xu-cheng/latex-action@master
+        with:
+          root_file: main.tex
+      # Push generated .pdf file to repository
+      - name: Commit
+        uses: github-actions-x/commit@v2.3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          push-branch: master
+          rebase: true
+          commit-message: 'Update compiled .tex file'
+          force-add: true
+          files: main.pdf
+          name: GitHub
+          email: support@github.com
