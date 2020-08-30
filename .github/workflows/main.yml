@@ -17,7 +17,9 @@ jobs:
     steps:
       # Checkout repository
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
+        with:
+          ref: master
       # Read current version
       - name: Current version
         id: version_current
@@ -85,20 +87,15 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: master # needed to checkout version updated master
+          lfs: true
       # Creating .pdf from main.tex
       - name: Compile
         uses: xu-cheng/latex-action@master
         with:
           root_file: main.tex
-      # Push generated .pdf file to repository
-      - name: Commit
-        uses: github-actions-x/commit@v2.3
+      # Push generated .pdf file to action result
+      - name: Upload
+        uses: actions/upload-artifact@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          push-branch: master
-          rebase: true
-          commit-message: 'Update compiled .tex file'
-          force-add: true
-          files: main.pdf
-          name: GitHub
-          email: support@github.com
+          name: result
+          path: main.pdf
